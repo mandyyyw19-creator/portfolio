@@ -19,6 +19,7 @@
  * ========================================================================== */
 
 import { useSyncExternalStore } from 'react'
+import { assetUrl, stripBase } from '../lib/base'
 
 /* ── 类型 ─────────────────────────────────────────────────── */
 
@@ -88,14 +89,14 @@ const LICENSE_TODO = 'unverified/待确认'
 /** Hero 直接采样的实体表面纹理：首屏必须全部可用于渲染 */
 function prop(
   id: string,
-  url: string,
+  path: string,
   bytes: number,
   version: string,
   preload = false,
 ): AssetEntry {
   return {
     id,
-    url,
+    url: assetUrl(path),
     kind: 'image',
     group: 'hero.prop',
     blocking: true,
@@ -114,14 +115,14 @@ function prop(
 /** 柜门贴纸：首屏可见，但单张缺失不影响主结构可读，失败静默降级 */
 function decal(
   id: string,
-  url: string,
+  path: string,
   bytes: number,
   version: string,
   preload = false,
 ): AssetEntry {
   return {
     id,
-    url,
+    url: assetUrl(path),
     kind: 'image',
     group: 'hero.decal',
     blocking: true,
@@ -140,14 +141,14 @@ function decal(
 /** 作品页资源：全部非阻塞，进入对应栏目时按需加载 */
 function lazyAsset(
   id: string,
-  url: string,
+  path: string,
   group: AssetGroup,
   bytes: number,
   version: string,
 ): AssetEntry {
   return {
     id,
-    url,
+    url: assetUrl(path),
     kind: 'image',
     group,
     blocking: false,
@@ -159,8 +160,10 @@ function lazyAsset(
     timeoutMs: DEFAULT_TIMEOUT,
     license: LICENSE_TODO,
     version,
-    // 作品图按栏目显示宽度生成了 1x / 2x 档位，见 WORK_VARIANTS
-    variants: WORK_VARIANTS[url] ?? [],
+    // 作品图按栏目显示宽度生成了 1x / 2x 档位，见 WORK_VARIANTS。
+    // WORK_VARIANTS 的键是**逻辑路径**（不含 base），变体 url 也一样；
+    // 这里统一解析成可直接请求的地址。
+    variants: (WORK_VARIANTS[path] ?? []).map((v) => ({ ...v, url: assetUrl(v.url) })),
   }
 }
 
@@ -813,7 +816,8 @@ async function auditWorkImageSources(): Promise<void> {
     }
     const missing: string[] = []
     for (const a of ASSET_MANIFEST) {
-      const m = /^\/assets\/(photo|posters|mag|cover)\/([^/]+)\.webp$/.exec(a.url)
+      // 清单里的 url 已经带上 base，比对时先剥掉，还原成逻辑路径
+      const m = /^\/assets\/(photo|posters|mag|cover)\/([^/]+)\.webp$/.exec(stripBase(a.url))
       if (!m) continue
       const dir = m[1] as Parameters<typeof workImage>[0]
       const { src, srcSet } = workImage(dir, m[2])

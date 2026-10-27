@@ -30,6 +30,7 @@ import {
   type Texture,
 } from 'three'
 import atlasData from '../../scripts/assets/decal-atlas.json'
+import { assetUrl } from '../lib/base'
 
 export type AtlasEntry = {
   /** 图集内的 UV 矩形：[u0, v0, du, dv] */
@@ -63,9 +64,13 @@ function readEntries(): Map<string, AtlasEntry> {
 }
 
 function loadAtlas(): Promise<DecalAtlas> {
+  // 图集本身是一次真实的网络请求，路径要带 base；
+  // 但 entries 里的 key 是贴花的**逻辑路径**（UV 稳定键），
+  // 必须与 decalSpecs.ts 里的 url 一致，不能加前缀。
+  const atlasUrl = assetUrl(atlasData.url)
   return new Promise((resolve, reject) => {
     new TextureLoader().load(
-      atlasData.url,
+      atlasUrl,
       (texture) => {
         texture.colorSpace = SRGBColorSpace
         texture.generateMipmaps = true
@@ -75,7 +80,7 @@ function loadAtlas(): Promise<DecalAtlas> {
         resolve({ texture, entries: readEntries() })
       },
       undefined,
-      () => reject(new Error(`贴花图集加载失败：${atlasData.url}`)),
+      () => reject(new Error(`贴花图集加载失败：${atlasUrl}`)),
     )
   })
 }

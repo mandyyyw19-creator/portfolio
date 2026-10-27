@@ -6,6 +6,8 @@
  * 让浏览器按显示尺寸和 DPR 取最小的一张 —— 直接决定 RGBA 解码占用的内存。
  */
 
+import { assetUrl } from '../../lib/base'
+
 /** 各栏目原图的像素宽 */
 const FULL_W = {
   photo: 1400,
@@ -44,7 +46,8 @@ export const SIZES = {
 
 /** 返回可直接展开到 `<img>` 上的 src / srcSet */
 export function workImage(dir: WorkAssetDir, name: string) {
-  const base = `/assets/${dir}/${name}`
+  // 运行时拼出来的路径必须带 base，否则部署到子路径时全部 404
+  const base = assetUrl(`/assets/${dir}/${name}`)
   const widths = VARIANTS[dir]
   const srcSet = [
     ...widths.map((w) => `${base}-${w}.webp ${w}w`),
