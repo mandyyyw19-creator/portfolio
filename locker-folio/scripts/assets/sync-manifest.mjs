@@ -12,11 +12,16 @@
  *   bun run scripts/assets/sync-manifest.mjs          写回
  *   bun run scripts/assets/sync-manifest.mjs --check  只报告差异，有差异时退出码 1
  */
+import { fileURLToPath } from 'node:url'
 import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
-const ROOT = new URL('../..', import.meta.url).pathname.replace(/\/$/, '')
+/**
+ * 用 fileURLToPath 而不是 new URL().pathname —— 后者会把路径里的中文
+ * 留在百分号编码状态（%E7%A7%8B…），导致读文件时 ENOENT。
+ */
+const ROOT = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 const FILE = join(ROOT, 'src/experience/assetManifest.ts')
 const CHECK = process.argv.includes('--check')
 

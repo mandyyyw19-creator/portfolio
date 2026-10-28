@@ -17,26 +17,38 @@
  * 缺的只是内容。重新生成会赌上整个风格一致性（用户明确指出过风格不统一是
  * 最大问题），而合成只往上加内容，形体、材质、光照一个像素都不动。
  *
- * 头像用仓库里已有的 obj2/stk1.webp（红帽金发女孩）裁头肩 ——
- * 参考里工牌头像和门上那张人物贴纸本来就是同一个角色，
- * 复用还顺带保证了风格零偏差，也不用引入新的授权来源。
+ * 头像用**使用者本人的真实照片** —— 裁自 PDF 第 9 页「小红书个人 IP 账号运营」
+ * 里那张本人照片。原版这里用的是模板作者自己的卡通角色（红帽金发女孩），
+ * 出现在作品集的个人工牌上等于挂着别人的形象，必须换成真人。
  *
  * ── 信息内容 ────────────────────────────────────────────────
  * 参考上是真人的姓名 / 生日 / 学校。**不照抄真人信息**，
- * 按 src/data/content.ts 里 ABOUT 已有的匿名化字段（NAME 姓名 / MAJOR 专业 /
- * CLASS 班级）填占位值，视觉密度与参考一致。
+ * 按 src/data/content.ts 里 ABOUT 已有的字段（NAME 姓名 / MAJOR 专业 /
+ * CLASS 班级）填值，视觉密度与参考一致。
  *
  *   bun run scripts/assets/build-badge.mjs
  */
 
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 sharp.cache(false)
 
-const ROOT = new URL('../..', import.meta.url).pathname.replace(/\/$/, '')
+/**
+ * 用 fileURLToPath 而不是 new URL().pathname —— 后者会把路径里的中文
+ * 留在百分号编码状态（%E7%A7%8B…），sharp 读不到文件。
+ */
+const ROOT = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 const BLANK = join(ROOT, 'scripts/assets/masters/idcard-blank.webp')
-const AVATAR = join(ROOT, 'public/assets/obj2/stk1.webp')
+/** 本人真实照片：裁自 PDF 第 9 页「小红书个人 IP 账号运营」中的人像 */
+const AVATAR = join(ROOT, '_dev/pdf-extracted/page9.png')
+/**
+ * 头像在 page9（2880×1620）里的裁切矩形。
+ * 那张照片整体在 x ∈ [1076,1652]、y ∈ [374,1136]，
+ * 头肩部分在上半，取 y ∈ [374,900]，横向留一点余量。
+ */
+const AVATAR_BOX = { left: 1076, top: 374, width: 576, height: 526 }
 const OUT = join(ROOT, 'public/assets/obj/idcard2.webp')
 
 /** 画布尺寸与卡面特征，全部是在 masters/idcard-blank.webp 上量出来的像素坐标 */
@@ -67,29 +79,28 @@ const LABEL = '#9DB0BB'
 const BAND_HUE = 186
 const BAND_SAT_SCALE = 0.72
 
-/** 与 src/data/content.ts 的 ABOUT.fields 对齐的匿名占位内容 */
+/**
+ * 与 src/data/content.ts 的 ABOUT.fields 对齐的内容。
+ *
+ * 这一版把占位值换成了真实履历：原脚本里写死的是模板作者自己的
+ * 「KEESU / DESIGNER / 2026」—— 那是上游模板作者的名字，出现在
+ * 作品集工牌上等于署了别人的名，必须换成使用者本人的信息。
+ *
+ *   NAME   → MANDI WU      （吴曼迪，与 ABOUT.fields 的姓名一致）
+ *   MAJOR  → 游戏发行营销   （求职方向，作品集的主题）
+ *   CLASS  → 2026         （毕业年份，与 footer 的 PORTFOLIO '26 呼应）
+ */
 const ROWS = [
-  { value: 'KEESU', label: 'NAME / 姓名' },
-  { value: 'DESIGNER', label: 'MAJOR / 专业' },
+  { value: 'MANDI WU', label: 'NAME / 姓名' },
+  { value: '游戏发行营销', label: 'MAJOR / 专业' },
   { value: '2026', label: 'CLASS / 班级' },
 ]
 
-/* ── 头像：从贴纸上裁头肩，按照片框比例填满 ─────────────── */
-
-const av = await sharp(AVATAR).metadata()
-/*
- * stk1 是站姿全身（183×336）。照片框比例 0.80，取上半身：
- * 左右各让 4%（帽檐和头发要留住），上边留 2%，高度按框比例反推。
- */
-const cropX = Math.round(av.width * 0.04)
-const cropW = av.width - cropX * 2
-const cropY = Math.round(av.height * 0.02)
-const cropH = Math.min(av.height - cropY, Math.round(cropW / (PHOTO.w / PHOTO.h)))
+/* ── 头像：从本人照片裁头肩，按照片框比例填满 ───────────────── */
 
 const avatar = await sharp(AVATAR)
-  .extract({ left: cropX, top: cropY, width: cropW, height: cropH })
-  .resize(PHOTO.w, PHOTO.h, { fit: 'cover', kernel: 'lanczos3' })
-  // 贴纸自带白色描边，裁进照片框里正好当相纸白边，不额外处理
+  .extract(AVATAR_BOX)
+  .resize(PHOTO.w, PHOTO.h, { fit: 'cover', position: 'north', kernel: 'lanczos3' })
   .png()
   .toBuffer()
 
@@ -127,7 +138,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <!-- 三行信息：值压在线上，极小标签在线下 -->
   ${ROWS.map((r, i) => {
     const y = LINES[i]
-    return `<text x="${LINE_X}" y="${y - 9}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    return `<text x="${LINE_X}" y="${y - 9}" font-family="PingFang SC, Helvetica Neue, Helvetica, Arial, sans-serif"
         font-weight="700" font-size="34" letter-spacing="1" fill="${TEAL}">${r.value}</text>
   <text x="${LINE_X + 2}" y="${y + 24}" font-family="PingFang SC, Helvetica Neue, sans-serif"
         font-size="15" letter-spacing="1.2" fill="${LABEL}">${r.label}</text>`

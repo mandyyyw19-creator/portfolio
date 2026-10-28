@@ -178,9 +178,9 @@ function lazyAsset(
  * 显示 100%，实际上却是在等待场景根本不会用到的旧图片。
  */
 const HERO_PROPS: AssetEntry[] = [
-  prop('hero.posterwall', '/assets/obj/posterwall.webp', 83900, '2e4607b3', true),
+  prop('hero.posterwall', '/assets/obj/posterwall.webp', 53602, '28546597', true),
   prop('hero.findaword', '/assets/obj/findaword2.webp', 30894, '193897a8', true),
-  prop('hero.door4.polaroids', '/assets/obj2/polaroids.webp', 65492, 'df8d6564', true),
+  prop('hero.door4.polaroids', '/assets/obj2/polaroids.webp', 96148, '74cd0651', true),
 ]
 
 /**
@@ -191,7 +191,7 @@ const HERO_PROPS: AssetEntry[] = [
  * 运行时不会逐张请求。因此 Loader 也只等待这一个真实请求。
  */
 const HERO_DECALS: AssetEntry[] = [
-  decal('hero.decalAtlas', '/assets/obj2/doorDecals.webp', 244716, '41baddc8', true),
+  decal('hero.decalAtlas', '/assets/obj2/doorDecals.webp', 235102, '91ff5d4c', true),
 ]
 
 /**

@@ -16,9 +16,15 @@
  */
 import { readdirSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
-const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
+/**
+ * 用 fileURLToPath 而不是 new URL().pathname —— 后者会把路径里的中文
+ * 留在百分号编码状态（%E7%A7%8B…），导致 existsSync 全部落空，
+ * 脚本会「处理 0 张」却看起来正常退出。
+ */
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '')
 const DIRS = ['public/assets/obj', 'public/assets/obj2']
 const CHECK = process.argv.includes('--check')
 /** 向外推的圈数：够覆盖到最小 mip 级别取样即可，太多只是白白增大文件 */

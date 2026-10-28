@@ -7,11 +7,36 @@
  */
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join, extname, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
+/**
+ * 用 fileURLToPath 而不是 new URL().pathname —— 后者会把路径里的中文
+ * 留在百分号编码状态（%E7%A7%8B…），导致读文件时 ENOENT。
+ */
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '')
 const target = process.argv[2] === 'dist' ? 'dist' : null
 const PUBLIC_DIR = target ? join(ROOT, 'dist') : join(ROOT, 'public')
 const HTML = target ? join(ROOT, 'dist/index.html') : join(ROOT, 'index.html')
+
+/**
+ * 从 vite.config 读取 base（GitHub Pages 部署在 /portfolio/ 子路径）。
+ * 构建产物（dist/index.html）里的 preload href 会带上这个 base，
+ * 但文件在磁盘上是 dist/assets/...，必须先把 base 剥掉才能对上。
+ */
+let BASE = '/'
+try {
+  const cfg = readFileSync(join(ROOT, 'vite.config.ts'), 'utf8')
+  const m = cfg.match(/base:\s*['"]([^'"]+)['"]/)
+  if (m) BASE = m[1]
+} catch {
+  /* 读不到就退化为 /，不剥任何前缀 */
+}
+const BASE_PREFIX = BASE.replace(/^\/+|\/+$/g, '') // "/portfolio/" → "portfolio"
+/** 剥掉 Vite base 前缀：/portfolio/assets/x → assets/x；不带 base 时原样返回 */
+function stripBase(href) {
+  if (!BASE_PREFIX) return href.replace(/^\//, '')
+  return href.replace(/^\//, '').replace(new RegExp(`^${BASE_PREFIX}/?`), '')
+}
 
 /** 首屏预算（§12.1）；作品页素材不算首屏 */
 const BUDGET = {
@@ -48,7 +73,7 @@ for (const p of preloads) {
     continue
   }
   if (!p.as) errors.push(`preload 缺少 as 属性：${p.href}`)
-  const disk = join(PUBLIC_DIR, p.href.replace(/^\//, ''))
+  const disk = join(PUBLIC_DIR, stripBase(p.href))
   if (!existsSync(disk)) {
     errors.push(`preload 指向不存在的资源：${p.href}`)
   }

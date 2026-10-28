@@ -27,11 +27,16 @@
  *   bun run scripts/assets/build-textstickers.mjs
  */
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 sharp.cache(false)
 
-const ROOT = new URL('../..', import.meta.url).pathname.replace(/\/$/, '')
+/**
+ * 用 fileURLToPath 而不是 new URL().pathname —— 后者会把路径里的中文
+ * 留在百分号编码状态（%E7%A7%8B…），导致读文件时 ENOENT。
+ */
+const ROOT = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 
 /** 白色模切描边宽度，量自现有 9 张贴纸 */
 const DIE_CUT = 11

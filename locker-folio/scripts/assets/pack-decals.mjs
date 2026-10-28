@@ -39,6 +39,7 @@
  *   bun run scripts/assets/pack-decals.mjs --dry     只算占用率，不写文件
  *   bun run scripts/assets/pack-decals.mjs --check   校验磁盘产物是否与源图一致（门禁用）
  */
+import { fileURLToPath } from 'node:url'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
@@ -46,7 +47,11 @@ import sharp from 'sharp'
 
 sharp.cache(false)
 
-const ROOT = new URL('../..', import.meta.url).pathname.replace(/\/$/, '')
+/**
+ * 用 fileURLToPath 而不是 new URL().pathname —— 后者会把路径里的中文
+ * 留在百分号编码状态（%E7%A7%8B…），导致读文件时 ENOENT。
+ */
+const ROOT = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 const DRY = process.argv.includes('--dry')
 /** --check：只校验磁盘上的图集与 UV 表是不是当前源图与配置的产物，不写文件 */
 const CHECK = process.argv.includes('--check')
